@@ -26,7 +26,7 @@ use SDLx::Text;
 my ($gui, $background1, $background, $background_rect, $event, $exiting, $text_box);
 # First create a new App
 $gui = SDLx::App->new(
-    title  => "Battleship",
+    title  => "perlShips",
     width  => 1024, # use same width as background image
     height => 768, # use same height as background image
     depth  => 32,
@@ -57,7 +57,7 @@ $text_box = SDLx::Text->new(size=>'24', # font can also be specified
                             color=>[255,0,0], # [R,G,B]
                             x =>200,
                             y=> 575);
-                            
+
 # Create a new event structure variable
 $event = SDL::Event->new();
 # Draw the background
