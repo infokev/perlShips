@@ -50,6 +50,9 @@ use constant rectPromptBoxX => 11;
 use constant rectPromptBoxY => 408;
 my $lineHeight=20;
 
+use constant verbFire => "fire"; 
+use constant verbQuit => "quit";
+
 my ($gui, $event, $exiting );
 # First create a new App
 $gui = SDLx::App->new(
@@ -105,13 +108,17 @@ $event = SDL::Event->new();
 # Update the window
 SDL::Video::update_rects($gui, $rectBackground, $rectPromptBox);
 
-getPlayerPositions();
-setupComputer();
+setPlayerPositions();
+setComputerPositions();
 
 $exiting = 0;
 # Start a game loop
 while ( !$exiting ) {
   $gui->update;
+  getPlayerMove();
+  testHits();
+  getComputerMove();
+  testHits();
   # Update the queue to recent events
   SDL::Events::pump_events();
   # process all available events
@@ -132,7 +139,6 @@ while ( !$exiting ) {
   $gui->delay(100);
 } # game loop
 
-
 #while (NOT ending) {
 
   getPlayerMove();
@@ -141,8 +147,6 @@ while ( !$exiting ) {
   makeComputerMove();
   #checkgameend
 #}
-
-
 
 sub quit_event {
 	exit;
@@ -154,7 +158,7 @@ sub key_event {
   my $keyName = SDL::Events::get_key_name( $event->key_sym );  
   print "[$keyName]\n";
   if (($keyName eq "q") || ($keyName eq "Q") ) {
-    $exiting = 1;
+  #  $exiting = 1;
   }
   if (($keyName eq "x") || ($keyName eq "X") ) {
     $exiting = 1;
@@ -224,7 +228,7 @@ sub makeComputerMove {
 
 
 # this sub gets the players move and see if or the ai has hit anything if the have hit something or missed this sub will display it.
-sub textHits {
+sub testHits {
 
 # announce if the player and AI have either hit a ship or have missed.
 
@@ -240,47 +244,6 @@ sub winner {
 
 }
 
-
-
-
-# [Start Screen 
-
-# Player Vs Computer or Human
-
-# Place your ships or choose random locations
-# 5 ships per Char Max total in a game is 10 (1 carrier 5 spaces 1 battleship 4 spaces 1 Destroyer 3 spaces 1 2 Cruisers 3 spaces) 
-# Randomiser places your ships at random co-ordinates] 
-
-# Type Start to begin the game
-# Popup Screen, Background, Grid 10/10,
-#link grid with background
-
-# Enter Cordinates to attack
-# [Y Co] [X Co]
-
-# You Missed, You cant fire at that location again
-
-# You Hit a Ship, You cant fire at that location again
-
-# You sunk a ships
-
-# Your ship was sunk
-
-# You have Sunk all enemy ships, You Win
-
-# All your ships have been destroyed, You Lost
-
-# Wanna play again type start
-
-# New Game
-
-# define a constant for later conveniance
-
-# define a constant for later conveniance
-
-
-
-
 # testing purposes, place a destroyer
 # note this is [row][column] positioning
 $oceanPlayer[1][2]="d";
@@ -288,7 +251,6 @@ $oceanPlayer[5][5]="c";
 $oceanPlayer[9][9]="b";
 $oceanPlayer[6][6]="f";
 $oceanPlayer[7][8]="s";
-
 
 
 # testing purposes, display the player's ocean
@@ -300,78 +262,37 @@ foreach (my $x=0;$x<=size;$x++) {
   print "\n";
 }
 
-
-
 # demonstrate ability to test values in the ocean,
-if ($oceanPlayer[1][2] eq "d") {
-  print "Destroyer";
-}
-else {
-  print "not Destroyer (Empty)";
-}
-print "\n";
+#if ($oceanPlayer[1][2] eq "d") {
 
-
-
-if ($oceanPlayer[4][5] eq "c") {
-  print "Carrier";
-}
-else {
-  print "not carrier (Empty)";
-}
-print "\n";
-
-
-
-if ($oceanPlayer[9][9] eq "b") {
-  print "Battleship";
-}
-else {
-  print "not Battleship (Empty)";
-}
-print "\n";
-
-
-
-
-if ($oceanPlayer[4][6] eq "f") {
-  print "Frigate";
-}
-else {
-  print "not Frigate (Empty)";
-}
-print "\n";
-
-
-
-
-if ($oceanPlayer[7][8] eq "s") {
-  print "Submerine";
-}
-else {
-  print "not Submarine (Empty)";
-}
-print "\n";
 
 ##############################################################################################################################################################
 
 sub getPlayerMove {
-  prompt("Where will I put the battleship?");
+  promptClear();
+  prompt(0, "Your move:");
+  my $cmd=getCommand();
+  # make command lowercase
+  $cmd=lc $cmd;
+  showBoard();
+  prompt(1, "Got: $cmd");
+  processCommand($cmd);
 }
 
-sub setupComputer {
+sub getComputerMove {
 
 }
 
-sub promtClear {
+sub promptClear {
+  # clear prompt area
   SDL::Video::blit_surface($promptBox, $rectPromptBoxMaster, $gui, $rectPromptBox );
   SDL::Video::update_rects($gui, $rectPromptBox);
 }
+
 sub prompt {
+  # print into prompt area
   my $line=shift;
   my $msg=shift;
-#  SDL::Video::blit_surface($promptBox, $rectPromptBoxMaster, $gui, $rectPromptBox );
-#  SDL::Video::update_rects($gui, $rectPromptBox);
   if (length ($msg) > 0) {
     $textPrompt[$line]->write_to($gui, $msg);
     SDL::Video::update_rects($gui, $rectPromptBox);
@@ -379,14 +300,15 @@ sub prompt {
 }
 
 sub getPlayerPositions {
-  prompt(0, "Position ship:");
+  prompt(0, "Your move:");
   my $pos=getCommand();
   showBoard();
-  prompt(1, $pos);
+  prompt(1, "Got: $pos");
   print "Got $pos";
 }
 
 sub getCommand {
+  # get one command line from player
   my $command;
   while ( !$exiting ) {
     $gui->update;
@@ -436,4 +358,33 @@ sub showBoard {
     # after each line, CR
     print "\n";
   }
+}
+
+sub setPlayerPositions {
+
+}
+
+sub setComputerPositions {
+
+}
+
+sub processCommand {
+  my $commandString=shift; # get what's passed in
+  my @command=split "\s", $commandString; # split by whitespace into words
+  my $verb=$command[0];
+  if ($verb eq verbFire) {
+    unshift @command; # get rid of verb now it's identified
+    commandFire(@command);
+  }
+  elsif ($verb eq verbQuit) {
+    $exiting=1;
+  }
+  else {
+    prompt(2, "Unknown command ($verb) - press any key to continue");
+    $gui->pause();
+  }
+}
+
+sub commandFire {
+
 }
