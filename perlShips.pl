@@ -8,8 +8,27 @@ use strict;
 # Date:   2013
 # Author:
 
-my ($carrier, $battleship, $destroyer, $frigate, $submerine);
+my ($carrier, $battleship, $destroyer, $frigate, $submarine);
 my ($getboard, $player);
+
+use constant size => 10;
+# create an empty grid
+my @oceanEmpty=(
+#        A B C D E F G H I J
+        [0,0,0,0,0,0,0,0,0,0], # 0
+        [0,0,0,0,0,0,0,0,0,0], # 1
+        [0,0,0,0,0,0,0,0,0,0], # 2
+        [0,0,0,0,0,0,0,0,0,0], # 3
+        [0,0,0,0,0,0,0,0,0,0], # 4
+        [0,0,0,0,0,0,0,0,0,0], # 5
+        [0,0,0,0,0,0,0,0,0,0], # 6
+        [0,0,0,0,0,0,0,0,0,0], # 7
+        [0,0,0,0,0,0,0,0,0,0], # 8
+        [0,0,0,0,0,0,0,0,0,0], # 9
+       );
+# copy empty grid to each player       
+my @oceanPlayer=@oceanEmpty;
+my @oceanComputer=@oceanEmpty;
 
 use SDL; #needed to get all constants
 use SDL::Video;
@@ -22,13 +41,21 @@ use SDL::Mouse;
 # Now use text modules
 use SDLx::Text;
 
+#use constant => ;
+use constant screenWidth => 660;
+use constant screenHeight => 494;
+use constant textPromptX => 15;
+use constant textPromptY => 415;
+use constant rectPromptBoxX => 11;
+use constant rectPromptBoxY => 408;
+my $lineHeight=20;
 
-my ($gui, $background1, $background, $background_rect, $event, $exiting, $text_box);
+my ($gui, $event, $exiting );
 # First create a new App
 $gui = SDLx::App->new(
     title  => "perlShips",
-    width  => 1024, # use same width as background image
-    height => 768, # use same height as background image
+    width  => screenWidth, # use same width as background image
+    height => screenHeight, # use same height as background image
     depth  => 32,
     exit_on_quit => 1 # Enable 'X' button
 );
@@ -38,34 +65,48 @@ $gui->add_event_handler( \&quit_event );
 # If the program is run without an available image the error
 #  "Can't call method "w" on an undefined value at ThisFile.pl line XX."
 # will be received.
-$background = SDL::Image::load('graphics/grid4.png');
+my ($background, $rectBackground);
+$background = SDL::Image::load('graphics/bg_ocean_moon_actual.png');
 # Create a rectangle for the background image
-$background_rect = SDL::Rect->new(0,0,
+$rectBackground = SDL::Rect->new(0,0,
     $background->w,
     $background->h,
 );
+SDL::Video::blit_surface($background, $rectBackground, $gui, $rectBackground );
 
-
-$background1 = SDL::Image::load('graphics/double.png');
-$background_rect = SDL::Rect->new(0,0,
-    $background->w,
-    $background->h,
+my ($promptBox, $rectPromptBox, @textPrompt, $rectPromptBoxMaster);
+$promptBox = SDL::Image::load('graphics/promptBox_moon.png');
+$rectPromptBoxMaster=SDL::Rect->new(0,0, $promptBox->w,$promptBox->h);
+# Create a rectangle for the background image
+$rectPromptBox = SDL::Rect->new(rectPromptBoxX, rectPromptBoxY,
+    $promptBox->w,
+    $promptBox->h,
 );
-
-# Add in a text box/location; we'll put text in it later
-$text_box = SDLx::Text->new(size=>'24', # font can also be specified
-                            color=>[255,0,0], # [R,G,B]
-                            x =>200,
-                            y=> 575);
+SDL::Video::blit_surface($promptBox, $rectPromptBoxMaster, $gui, $rectPromptBox );
+# Add in text box/locations; we'll put text in it later:
+# 3 lines
+$textPrompt[0] = SDLx::Text->new(size=>'18', # font can also be specified
+                            color=>[255,255,255], # [R,G,B]
+                            x => textPromptX,
+                            y => textPromptY);
+$textPrompt[1] = SDLx::Text->new(size=>'18', # font can also be specified
+                            color=>[255,255,255], # [R,G,B]
+                            x => textPromptX,
+                            y => textPromptY+$lineHeight);
+$textPrompt[2] = SDLx::Text->new(size=>'18', # font can also be specified
+                            color=>[255,255,255], # [R,G,B]
+                            x => textPromptX,
+                            y => textPromptY+($lineHeight*2));
 
 # Create a new event structure variable
 $event = SDL::Event->new();
 # Draw the background
-SDL::Video::blit_surface($background, $background_rect, $gui, $background_rect );
+
 # Update the window
-SDL::Video::update_rects($gui, $background_rect);
+SDL::Video::update_rects($gui, $rectBackground, $rectPromptBox);
 
-
+getPlayerPositions();
+setupComputer();
 
 $exiting = 0;
 # Start a game loop
@@ -91,17 +132,15 @@ while ( !$exiting ) {
   $gui->delay(100);
 } # game loop
 
-getPlayerPositions();
-setupComputer();
 
-while (NOT ending) {
+#while (NOT ending) {
 
   getPlayerMove();
   testHits();
   #checkgameend
   makeComputerMove();
   #checkgameend
-}
+#}
 
 
 
@@ -109,24 +148,18 @@ sub quit_event {
 	exit;
 }
 
-
-
 sub key_event {
   # printed output from here is going to the CLI
   print "Key is: ";
-  my $key_name = SDL::Events::get_key_name( $event->key_sym );  
-  print "[$key_name]\n";
-  if (($key_name eq "q") || ($key_name eq "Q") ) {
+  my $keyName = SDL::Events::get_key_name( $event->key_sym );  
+  print "[$keyName]\n";
+  if (($keyName eq "q") || ($keyName eq "Q") ) {
     $exiting = 1;
   }
-  if (($key_name eq "x") || ($key_name eq "X") ) {
+  if (($keyName eq "x") || ($keyName eq "X") ) {
     $exiting = 1;
   }
 }
-
-
-    
-
 
 sub mouse_event {
   # printed output from here is going to the CLI
@@ -134,40 +167,22 @@ sub mouse_event {
   my ($mouse_mask,$mouse_x,$mouse_y)  = @{SDL::Events::get_mouse_state()};
   print "[$mouse_x, $mouse_y]\n";
   # re-blit the  background - try running this program with the next line commented out
-  SDL::Video::blit_surface($background, $background_rect, $gui, $background_rect );
+  SDL::Video::blit_surface($background, $rectBackground, $gui, $rectBackground );
   # Put some text in the previously prepared text box
-  #$text_box->write_to($gui,"Player Location: ($mouse_x, $mouse_y)");
+  #$textPrompt->write_to($gui,"Player Location: ($mouse_x, $mouse_y)");
 
 }
-
-
-
 
 sub initVars {
-
-
 }
-
-
-
-# you starts the game and bring up the board
-sub showBoard {
-
-# this brings up the battlefield where the ships will be placed it is a 10 by 10 grid with a background image infront
-#$getboard = 'battleship_array.pl' 'battleship_imagebackground';
-
-}
-
 
 
 # the ai places his ships
 sub aiPlaceShips {
-
-# the AI ships
-my $aiships= $carrier, $battleship, $destroyer, $frigate, $submerine;
-
-# this places the aiships 5 ships in random places
-$aiships=int (rand (10));
+  # the AI ships
+  my $aiships= $carrier, $battleship, $destroyer, $frigate, $submarine;
+  # this places the aiships 5 ships in random places
+  $aiships=int (rand (10));
 
 }
 
@@ -177,11 +192,8 @@ $aiships=int (rand (10));
 sub playerPlaceShips {
 
 # the players ships
-my $playerships= $carrier, $battleship, $destroyer, $frigate, $submerine;
+my $playerships= $carrier, $battleship, $destroyer, $frigate, $submarine;
 
-# an input box that asks the player where he wants to put his ships
-$playerships = <STDIN>;
-chomp $playerships
 
 }
 
@@ -191,7 +203,7 @@ chomp $playerships
 sub getPlayerMove {
 
   # get the players move.
-  #$text_box->write_to($gui,"Player Location: ()");
+  #$textPrompt->write_to($gui,"Player Location: ()");
 }
 
 
@@ -268,24 +280,7 @@ sub winner {
 
 
 
-use constant size => 10;
-# create an empty grid
-my @oceanEmpty=(
-#        A B C D E F G H I J
-        [0,0,0,0,0,0,0,0,0,0], # 0
-        [0,0,0,0,0,0,0,0,0,0], # 1
-        [0,0,0,0,0,0,0,0,0,0], # 2
-        [0,0,0,0,0,0,0,0,0,0], # 3
-        [0,0,0,0,0,0,0,0,0,0], # 4
-        [0,0,0,0,0,0,0,0,0,0], # 5
-        [0,0,0,0,0,0,0,0,0,0], # 6
-        [0,0,0,0,0,0,0,0,0,0], # 7
-        [0,0,0,0,0,0,0,0,0,0], # 8
-        [0,0,0,0,0,0,0,0,0,0], # 9
-       );
-# copy empty grid to each player       
-my @oceanPlayer=@oceanEmpty;
-my @oceanComputer=@oceanEmpty;
+
 # testing purposes, place a destroyer
 # note this is [row][column] positioning
 $oceanPlayer[1][2]="d";
@@ -361,9 +356,84 @@ print "\n";
 ##############################################################################################################################################################
 
 sub getPlayerMove {
-  $text_box->write_to($gui,"Where will I put the battleship?");
+  prompt("Where will I put the battleship?");
 }
 
 sub setupComputer {
 
+}
+
+sub promtClear {
+  SDL::Video::blit_surface($promptBox, $rectPromptBoxMaster, $gui, $rectPromptBox );
+  SDL::Video::update_rects($gui, $rectPromptBox);
+}
+sub prompt {
+  my $line=shift;
+  my $msg=shift;
+#  SDL::Video::blit_surface($promptBox, $rectPromptBoxMaster, $gui, $rectPromptBox );
+#  SDL::Video::update_rects($gui, $rectPromptBox);
+  if (length ($msg) > 0) {
+    $textPrompt[$line]->write_to($gui, $msg);
+    SDL::Video::update_rects($gui, $rectPromptBox);
+  }
+}
+
+sub getPlayerPositions {
+  prompt(0, "Position ship:");
+  my $pos=getCommand();
+  showBoard();
+  prompt(1, $pos);
+  print "Got $pos";
+}
+
+sub getCommand {
+  my $command;
+  while ( !$exiting ) {
+    $gui->update;
+    # Update the queue to recent events
+    SDL::Events::pump_events();
+    # process all available events
+    while (SDL::Events::poll_event($event)) {
+      # check by Event type      
+      if ($event->type == SDL_QUIT) {
+        &quit_event(); 
+      }
+      elsif ($event->type == SDL_KEYUP) {
+        my $keyName = SDL::Events::get_key_name( $event->key_sym );
+        if ($keyName ne 'return') {
+          translateKey(\$keyName);
+          $command .= $keyName;
+          &key_event($event);
+        }
+        else {
+          return $command;
+        }
+      }
+      elsif ($event->type == SDL_MOUSEBUTTONDOWN) {
+        &mouse_event($event);
+      }
+    }
+    SDL::Video::update_rects($gui);
+  } # game loop
+
+}
+
+sub translateKey {
+ my $key=shift;
+ # use $$ to reference variabubble outside
+ if ($$key eq 'space') {
+   $$key=' ';
+ }
+}
+
+sub showBoard {
+# this brings up the battlefield where the ships will be placed it is a 10 by 10 grid with a background image infront
+#$getboard = 'battleship_array.pl' 'battleship_imagebackground';
+  foreach (my $x=0;$x<=size;$x++) {
+    foreach (my $y=0;$y<=size;$y++) {
+      print $oceanPlayer[$x][$y];
+    }
+    # after each line, CR
+    print "\n";
+  }
 }
